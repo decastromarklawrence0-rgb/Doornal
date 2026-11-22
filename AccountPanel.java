@@ -31,35 +31,16 @@ public class AccountPanel extends JPanel {
     // DOORNAL OFFICIAL COLOR PALETTE
     // =====================================
 
-    private final Color BLUSH =
-            new Color(0xFC, 0xE1, 0xDD);
-
-    private final Color PEACH =
-            new Color(0xFC, 0xD3, 0xBF);
-
-    private final Color LAVENDER =
-            new Color(0xD2, 0xC5, 0xF0);
-
-    private final Color PERIWINKLE =
-            new Color(0xC0, 0xB4, 0xEF);
-
-    private final Color PINK_LAVENDER =
-            new Color(0xE8, 0xD3, 0xE5);
-
-    private final Color PURPLE =
-            new Color(0x8E, 0x8A, 0xD9);
-
-    private final Color MAUVE =
-            new Color(0xC1, 0x89, 0xAF);
-
-    private final Color DEEP_PLUM =
-            new Color(0x29, 0x22, 0x3F);
-
-    private final Color WHITE =
-            new Color(0xFF, 0xFC, 0xFC);
-
-    private final Color FIELD_BACKGROUND =
-            new Color(0xFF, 0xF8, 0xF8, 125);
+    private final Color BLUSH = new Color(0xFC, 0xE1, 0xDD);
+    private final Color PEACH = new Color(0xFC, 0xD3, 0xBF);
+    private final Color LAVENDER = new Color(0xD2, 0xC5, 0xF0);
+    private final Color PERIWINKLE = new Color(0xC0, 0xB4, 0xEF);
+    private final Color PINK_LAVENDER = new Color(0xE8, 0xD3, 0xE5);
+    private final Color PURPLE = new Color(0x8E, 0x8A, 0xD9);
+    private final Color MAUVE = new Color(0xC1, 0x89, 0xAF);
+    private final Color DEEP_PLUM = new Color(0x29, 0x22, 0x3F);
+    private final Color WHITE = new Color(0xFF, 0xFC, 0xFC);
+    private final Color FIELD_BACKGROUND = new Color(0xFF, 0xF8, 0xF8, 125);
 
     // =====================================
     // MAIN COMPONENTS
@@ -80,10 +61,49 @@ public class AccountPanel extends JPanel {
 
     private int targetX;
 
+    // =====================================
+    // FLOATING EMOTION IMAGES
+    // =====================================
+
+    private final String[] emotionNames = {
+        "happy.jpg",
+        "sad.jpg",
+        "tired.jpg",
+        "envy.jpg",
+        "fear.jpg",
+        "angry.jpg"
+    };
+
+    private Image[] emotionImages = new Image[6];
+
+    private double[] emotionPhases = {
+        0.0, 1.15, 2.30, 3.45, 4.60, 5.75
+    };
+
+    private double[] emotionSpeeds = {
+        0.75, 0.65, 0.85, 0.70, 0.80, 0.60
+    };
+
+    // Different bubble sizes for depth and dimension
+    private final int[] emotionSizes = {
+        118, 88, 102, 76, 112, 84
+    };
+
+    // Individual floating distances
+    private final double[] floatDistances = {
+        12, 9, 14, 8, 11, 10
+    };
+
+    private Timer emotionTimer;
+
+    private double animationTime = 0;
+
     public AccountPanel(JFrame loginFrame) {
 
         this.loginFrame = loginFrame;
         this.users = loadUsers();
+
+        loadEmotionImages();
 
         setLayout(null);
         setOpaque(false);
@@ -94,6 +114,304 @@ public class AccountPanel extends JPanel {
         createLoginForm();
         createSignupForm();
         createWelcomePanel();
+
+        startEmotionAnimation();
+    }
+
+    // =====================================
+    // LOAD EMOTION IMAGES
+    // =====================================
+
+    private void loadEmotionImages() {
+
+        for (int i = 0; i < emotionNames.length; i++) {
+
+            String path = "/images/img/" + emotionNames[i];
+
+            try {
+
+                java.net.URL resource = getClass().getResource(path);
+
+                if (resource != null) {
+
+                    emotionImages[i] = new ImageIcon(resource).getImage();
+
+                } else {
+
+                    File file = new File(
+                            "src/main/resources/images/img/"
+                            + emotionNames[i]
+                    );
+
+                    if (file.exists()) {
+                        emotionImages[i] =
+                                new ImageIcon(file.getAbsolutePath()).getImage();
+                    }
+                }
+
+                if (emotionImages[i] == null) {
+                    System.out.println("Unable to load: " + emotionNames[i]);
+                }
+
+            } catch (Exception e) {
+
+                emotionImages[i] = null;
+
+                System.out.println("Unable to load: " + emotionNames[i]);
+            }
+        }
+    }
+
+    // =====================================
+    // EMOTION ANIMATION TIMER
+    // =====================================
+
+    private void startEmotionAnimation() {
+
+        if (emotionTimer != null && emotionTimer.isRunning()) {
+            return;
+        }
+
+        emotionTimer = new Timer(35, e -> {
+            animationTime += 0.035;
+            repaint();
+        });
+
+        emotionTimer.start();
+    }
+
+    @Override
+    public void addNotify() {
+        super.addNotify();
+        startEmotionAnimation();
+    }
+
+    @Override
+    public void removeNotify() {
+
+        if (emotionTimer != null) {
+            emotionTimer.stop();
+        }
+
+        super.removeNotify();
+    }
+
+    // =====================================
+    // DRAW FLOATING EMOTION BUBBLES
+    // =====================================
+
+    private void drawFloatingEmotions(Graphics2D g2) {
+
+        int cardX = (getWidth() - 900) / 2;
+        int cardY = (getHeight() - 500) / 2;
+
+        // Positions are bubble centers.
+        // Larger bubbles are placed farther from the card.
+
+        int[][] positions = {
+
+            // Happy - top left
+            {cardX + 175, cardY - 58},
+
+            // Sad - top right
+            {cardX + 730, cardY - 45},
+
+            // Tired - left upper side
+            {cardX - 48, cardY + 145},
+
+            // Envy - left lower side
+            {cardX - 35, cardY + 390},
+
+            // Fear - right upper side
+            {cardX + 948, cardY + 145},
+
+            // Angry - right lower side
+            {cardX + 935, cardY + 385}
+        };
+
+        for (int i = 0; i < emotionImages.length; i++) {
+
+            Image image = emotionImages[i];
+
+            if (image == null) {
+                continue;
+            }
+
+            int size = emotionSizes[i];
+
+            double phase =
+                    animationTime * emotionSpeeds[i]
+                    + emotionPhases[i];
+
+            double floatY =
+                    Math.sin(phase) * floatDistances[i];
+
+            double floatX =
+                    Math.cos(phase * 0.75) * (floatDistances[i] * 0.65);
+
+            double rotation =
+                    Math.sin(phase * 0.65) * 0.12;
+
+            double centerX = positions[i][0] + floatX;
+            double centerY = positions[i][1] + floatY;
+
+            Graphics2D bubble = (Graphics2D) g2.create();
+
+            bubble.translate(centerX, centerY);
+            bubble.rotate(rotation);
+
+            // =================================
+            // OUTER SOFT GLOW
+            // =================================
+
+            for (int glow = 4; glow >= 1; glow--) {
+
+                int glowSize = size + glow * 13;
+                int alpha = 7 + glow * 4;
+
+                bubble.setColor(
+                        new Color(
+                                LAVENDER.getRed(),
+                                LAVENDER.getGreen(),
+                                LAVENDER.getBlue(),
+                                alpha
+                        )
+                );
+
+                bubble.fillOval(
+                        -glowSize / 2,
+                        -glowSize / 2,
+                        glowSize,
+                        glowSize
+                );
+            }
+
+            // =================================
+            // SOFT SHADOW
+            // =================================
+
+            bubble.setColor(new Color(41, 34, 63, 35));
+
+            bubble.fillOval(
+                    -size / 2 + 3,
+                    -size / 2 + 7,
+                    size,
+                    size
+            );
+
+            // =================================
+            // GLASS BACKGROUND
+            // =================================
+
+            GradientPaint glass = new GradientPaint(
+                    -size / 2f,
+                    -size / 2f,
+                    new Color(255, 255, 255, 235),
+                    size / 2f,
+                    size / 2f,
+                    new Color(232, 211, 229, 185)
+            );
+
+            bubble.setPaint(glass);
+
+            bubble.fillOval(
+                    -size / 2,
+                    -size / 2,
+                    size,
+                    size
+            );
+
+            // =================================
+            // IMAGE CLIPPING
+            // =================================
+
+            Shape oldClip = bubble.getClip();
+
+            int imagePadding = Math.max(6, size / 13);
+
+            Ellipse2D circle = new Ellipse2D.Double(
+                    -size / 2 + imagePadding,
+                    -size / 2 + imagePadding,
+                    size - imagePadding * 2,
+                    size - imagePadding * 2
+            );
+
+            bubble.setClip(circle);
+
+            bubble.drawImage(
+                    image,
+                    -size / 2 + imagePadding,
+                    -size / 2 + imagePadding,
+                    size - imagePadding * 2,
+                    size - imagePadding * 2,
+                    this
+            );
+
+            bubble.setClip(oldClip);
+
+            // =================================
+            // OUTER WHITE GLASS BORDER
+            // =================================
+
+            bubble.setColor(new Color(255, 255, 255, 235));
+
+            bubble.setStroke(new BasicStroke(3f));
+
+            bubble.drawOval(
+                    -size / 2,
+                    -size / 2,
+                    size,
+                    size
+            );
+
+            // =================================
+            // INNER LAVENDER BORDER
+            // =================================
+
+            bubble.setColor(
+                    new Color(
+                            LAVENDER.getRed(),
+                            LAVENDER.getGreen(),
+                            LAVENDER.getBlue(),
+                            175
+                    )
+            );
+
+            bubble.setStroke(new BasicStroke(1.4f));
+
+            bubble.drawOval(
+                    -size / 2 + 4,
+                    -size / 2 + 4,
+                    size - 8,
+                    size - 8
+            );
+
+            // =================================
+            // GLASS HIGHLIGHT
+            // =================================
+
+            bubble.setColor(new Color(255, 255, 255, 165));
+
+            bubble.fillOval(
+                    -size / 2 + size / 6,
+                    -size / 2 + size / 10,
+                    size / 4,
+                    Math.max(7, size / 12)
+            );
+
+            // Small secondary highlight
+
+            bubble.setColor(new Color(255, 255, 255, 90));
+
+            bubble.fillOval(
+                    -size / 2 + size / 3,
+                    -size / 2 + size / 5,
+                    Math.max(5, size / 12),
+                    Math.max(5, size / 12)
+            );
+
+            bubble.dispose();
+        }
     }
 
     // =====================================
@@ -113,12 +431,7 @@ public class AccountPanel extends JPanel {
             int x = (getWidth() - cardWidth) / 2;
             int y = (getHeight() - cardHeight) / 2;
 
-            card.setBounds(
-                    x,
-                    y,
-                    cardWidth,
-                    cardHeight
-            );
+            card.setBounds(x, y, cardWidth, cardHeight);
         }
     }
 
@@ -136,6 +449,11 @@ public class AccountPanel extends JPanel {
         g2.setRenderingHint(
                 RenderingHints.KEY_ANTIALIASING,
                 RenderingHints.VALUE_ANTIALIAS_ON
+        );
+
+        g2.setRenderingHint(
+                RenderingHints.KEY_INTERPOLATION,
+                RenderingHints.VALUE_INTERPOLATION_BILINEAR
         );
 
         int width = getWidth();
@@ -254,6 +572,10 @@ public class AccountPanel extends JPanel {
         g2.setStroke(new BasicStroke(3f));
         g2.draw(glowShape);
 
+        // Floating emotion images
+
+        drawFloatingEmotions(g2);
+
         g2.dispose();
     }
 
@@ -267,10 +589,7 @@ public class AccountPanel extends JPanel {
 
         card.setLayout(null);
 
-        card.setBounds(
-                0, 0,
-                900, PANEL_HEIGHT
-        );
+        card.setBounds(0, 0, 900, PANEL_HEIGHT);
 
         add(card);
     }
@@ -284,96 +603,47 @@ public class AccountPanel extends JPanel {
         loginForm = new JPanel(null);
         loginForm.setOpaque(false);
 
-        loginForm.setBounds(
-                0, 0,
-                PANEL_WIDTH,
-                PANEL_HEIGHT
-        );
+        loginForm.setBounds(0, 0, PANEL_WIDTH, PANEL_HEIGHT);
 
         JLabel title = new JLabel("Sign In");
 
-        title.setFont(new Font(
-                "Segoe UI", Font.BOLD, 30
-        ));
-
+        title.setFont(new Font("Segoe UI", Font.BOLD, 30));
         title.setForeground(DEEP_PLUM);
-
-        title.setHorizontalAlignment(
-                SwingConstants.CENTER
-        );
-
+        title.setHorizontalAlignment(SwingConstants.CENTER);
         title.setBounds(40, 65, 370, 45);
 
-        JLabel subtitle = new JLabel(
-                "Welcome back to Doornal!"
-        );
+        JLabel subtitle = new JLabel("Welcome back to Doornal!");
 
-        subtitle.setFont(new Font(
-                "Segoe UI", Font.PLAIN, 13
-        ));
-
+        subtitle.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         subtitle.setForeground(MAUVE);
-
-        subtitle.setHorizontalAlignment(
-                SwingConstants.CENTER
-        );
-
+        subtitle.setHorizontalAlignment(SwingConstants.CENTER);
         subtitle.setBounds(40, 112, 370, 25);
 
-        JLabel usernameLabel =
-                createLabel("Username");
-
-        usernameLabel.setBounds(
-                65, 175, 320, 25
-        );
+        JLabel usernameLabel = createLabel("Username");
+        usernameLabel.setBounds(65, 175, 320, 25);
 
         usernameField = createTextField();
+        usernameField.setBounds(65, 205, 320, 42);
 
-        usernameField.setBounds(
-                65, 205, 320, 42
-        );
-
-        JLabel passwordLabel =
-                createLabel("Password");
-
-        passwordLabel.setBounds(
-                65, 270, 320, 25
-        );
+        JLabel passwordLabel = createLabel("Password");
+        passwordLabel.setBounds(65, 270, 320, 25);
 
         passwordField = createPasswordField();
+        passwordField.setBounds(65, 300, 320, 42);
 
-        passwordField.setBounds(
-                65, 300, 320, 42
-        );
-
-        JButton loginButton = createButton(
-                "SIGN IN", PURPLE
-        );
-
-        loginButton.setBounds(
-                65, 375, 320, 45
-        );
+        JButton loginButton = createButton("SIGN IN", PURPLE);
+        loginButton.setBounds(65, 375, 320, 45);
 
         JLabel footer = new JLabel(
                 "Your personal space is waiting for you."
         );
 
-        footer.setFont(new Font(
-                "Segoe UI", Font.PLAIN, 11
-        ));
-
+        footer.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         footer.setForeground(MAUVE);
-
-        footer.setHorizontalAlignment(
-                SwingConstants.CENTER
-        );
-
-        footer.setBounds(
-                45, 435, 370, 25
-        );
+        footer.setHorizontalAlignment(SwingConstants.CENTER);
+        footer.setBounds(45, 435, 370, 25);
 
         loginButton.addActionListener(e -> login());
-
         passwordField.addActionListener(e -> login());
 
         usernameField.addActionListener(
@@ -409,90 +679,44 @@ public class AccountPanel extends JPanel {
 
         JLabel title = new JLabel("Create Account");
 
-        title.setFont(new Font(
-                "Segoe UI", Font.BOLD, 28
-        ));
-
+        title.setFont(new Font("Segoe UI", Font.BOLD, 28));
         title.setForeground(DEEP_PLUM);
-
-        title.setHorizontalAlignment(
-                SwingConstants.CENTER
-        );
-
-        title.setBounds(
-                35, 45, 380, 45
-        );
+        title.setHorizontalAlignment(SwingConstants.CENTER);
+        title.setBounds(35, 45, 380, 45);
 
         JLabel subtitle = new JLabel(
                 "Start your personal journaling journey."
         );
 
-        subtitle.setFont(new Font(
-                "Segoe UI", Font.PLAIN, 12
-        ));
-
+        subtitle.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         subtitle.setForeground(MAUVE);
+        subtitle.setHorizontalAlignment(SwingConstants.CENTER);
+        subtitle.setBounds(35, 90, 380, 25);
 
-        subtitle.setHorizontalAlignment(
-                SwingConstants.CENTER
-        );
-
-        subtitle.setBounds(
-                35, 90, 380, 25
-        );
-
-        JLabel usernameLabel =
-                createLabel("Username");
-
-        usernameLabel.setBounds(
-                65, 140, 320, 22
-        );
+        JLabel usernameLabel = createLabel("Username");
+        usernameLabel.setBounds(65, 140, 320, 22);
 
         signupUsernameField = createTextField();
+        signupUsernameField.setBounds(65, 165, 320, 38);
 
-        signupUsernameField.setBounds(
-                65, 165, 320, 38
-        );
-
-        JLabel passwordLabel =
-                createLabel("Password");
-
-        passwordLabel.setBounds(
-                65, 215, 320, 22
-        );
+        JLabel passwordLabel = createLabel("Password");
+        passwordLabel.setBounds(65, 215, 320, 22);
 
         signupPasswordField = createPasswordField();
+        signupPasswordField.setBounds(65, 240, 320, 38);
 
-        signupPasswordField.setBounds(
-                65, 240, 320, 38
-        );
-
-        JLabel confirmLabel =
-                createLabel("Confirm Password");
-
-        confirmLabel.setBounds(
-                65, 290, 320, 22
-        );
+        JLabel confirmLabel = createLabel("Confirm Password");
+        confirmLabel.setBounds(65, 290, 320, 22);
 
         confirmPasswordField = createPasswordField();
+        confirmPasswordField.setBounds(65, 315, 320, 38);
 
-        confirmPasswordField.setBounds(
-                65, 315, 320, 38
-        );
-
-        JButton signupButton = createButton(
-                "CREATE ACCOUNT", PURPLE
-        );
-
-        signupButton.setBounds(
-                65, 375, 320, 45
-        );
+        JButton signupButton = createButton("CREATE ACCOUNT", PURPLE);
+        signupButton.setBounds(65, 375, 320, 45);
 
         signupButton.addActionListener(e -> signup());
 
-        confirmPasswordField.addActionListener(
-                e -> signup()
-        );
+        confirmPasswordField.addActionListener(e -> signup());
 
         signupForm.add(title);
         signupForm.add(subtitle);
@@ -543,8 +767,7 @@ public class AccountPanel extends JPanel {
 
     private void toggleForm() {
 
-        if (slideTimer != null
-                && slideTimer.isRunning()) {
+        if (slideTimer != null && slideTimer.isRunning()) {
             return;
         }
 
@@ -576,23 +799,12 @@ public class AccountPanel extends JPanel {
             int speed = 12;
 
             if (currentX < targetX) {
-
-                currentX = Math.min(
-                        currentX + speed,
-                        targetX
-                );
-
+                currentX = Math.min(currentX + speed, targetX);
             } else if (currentX > targetX) {
-
-                currentX = Math.max(
-                        currentX - speed,
-                        targetX
-                );
+                currentX = Math.max(currentX - speed, targetX);
             }
 
-            welcomePanel.setLocation(
-                    currentX, 0
-            );
+            welcomePanel.setLocation(currentX, 0);
 
             if (currentX == targetX) {
                 slideTimer.stop();
@@ -610,10 +822,7 @@ public class AccountPanel extends JPanel {
 
         JLabel label = new JLabel(text);
 
-        label.setFont(new Font(
-                "Segoe UI", Font.BOLD, 13
-        ));
-
+        label.setFont(new Font("Segoe UI", Font.BOLD, 13));
         label.setForeground(DEEP_PLUM);
 
         return label;
@@ -721,16 +930,10 @@ public class AccountPanel extends JPanel {
 
     private void styleField(JTextField field) {
 
-        field.setFont(new Font(
-                "Segoe UI", Font.PLAIN, 14
-        ));
-
+        field.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         field.setForeground(DEEP_PLUM);
-
         field.setBackground(FIELD_BACKGROUND);
-
         field.setCaretColor(PURPLE);
-
         field.setOpaque(false);
 
         field.setBorder(
@@ -808,14 +1011,8 @@ public class AccountPanel extends JPanel {
     // GRADIENT GLASS BUTTONS
     // =====================================
 
-    private JButton createButton(
-            String text, Color color) {
-
-        return new GlassButton(
-                text,
-                color,
-                WHITE
-        );
+    private JButton createButton(String text, Color color) {
+        return new GlassButton(text, color, WHITE);
     }
 
     private class GlassButton extends JButton {
@@ -834,10 +1031,7 @@ public class AccountPanel extends JPanel {
             this.baseColor = baseColor;
             this.textColor = textColor;
 
-            setFont(new Font(
-                    "Segoe UI", Font.BOLD, 13
-            ));
-
+            setFont(new Font("Segoe UI", Font.BOLD, 13));
             setForeground(textColor);
 
             setFocusPainted(false);
@@ -845,13 +1039,9 @@ public class AccountPanel extends JPanel {
             setContentAreaFilled(false);
             setOpaque(false);
 
-            setCursor(new Cursor(
-                    Cursor.HAND_CURSOR
-            ));
+            setCursor(new Cursor(Cursor.HAND_CURSOR));
 
-            setBorder(new EmptyBorder(
-                    8, 15, 8, 15
-            ));
+            setBorder(new EmptyBorder(8, 15, 8, 15));
 
             addMouseListener(new MouseAdapter() {
 
@@ -889,12 +1079,7 @@ public class AccountPanel extends JPanel {
                     45
             ));
 
-            g2.fillRoundRect(
-                    2, 4,
-                    w - 4,
-                    h - 4,
-                    26, 26
-            );
+            g2.fillRoundRect(2, 4, w - 4, h - 4, 26, 26);
 
             Color top = hovered ? MAUVE : baseColor;
             Color bottom = hovered ? PURPLE : MAUVE;
@@ -906,12 +1091,7 @@ public class AccountPanel extends JPanel {
 
             g2.setPaint(gradient);
 
-            g2.fillRoundRect(
-                    0, 0,
-                    w - 2,
-                    h - 5,
-                    25, 25
-            );
+            g2.fillRoundRect(0, 0, w - 2, h - 5, 25, 25);
 
             g2.setColor(new Color(
                     WHITE.getRed(),
@@ -920,12 +1100,7 @@ public class AccountPanel extends JPanel {
                     hovered ? 65 : 45
             ));
 
-            g2.fillRoundRect(
-                    3, 2,
-                    w - 8,
-                    12,
-                    18, 18
-            );
+            g2.fillRoundRect(3, 2, w - 8, 12, 18, 18);
 
             g2.setColor(new Color(
                     WHITE.getRed(),
@@ -936,12 +1111,7 @@ public class AccountPanel extends JPanel {
 
             g2.setStroke(new BasicStroke(1.3f));
 
-            g2.drawRoundRect(
-                    1, 1,
-                    w - 4,
-                    h - 7,
-                    24, 24
-            );
+            g2.drawRoundRect(1, 1, w - 4, h - 7, 24, 24);
 
             g2.dispose();
 
@@ -955,18 +1125,15 @@ public class AccountPanel extends JPanel {
 
     private void signup() {
 
-        String username =
-                signupUsernameField.getText().trim();
+        String username = signupUsernameField.getText().trim();
 
-        String password =
-                String.valueOf(
-                        signupPasswordField.getPassword()
-                );
+        String password = String.valueOf(
+                signupPasswordField.getPassword()
+        );
 
-        String confirmPassword =
-                String.valueOf(
-                        confirmPasswordField.getPassword()
-                );
+        String confirmPassword = String.valueOf(
+                confirmPasswordField.getPassword()
+        );
 
         if (username.isEmpty()
                 || password.isEmpty()
@@ -992,8 +1159,7 @@ public class AccountPanel extends JPanel {
 
         for (User user : users) {
 
-            if (user.getUsername()
-                    .equalsIgnoreCase(username)) {
+            if (user.getUsername().equalsIgnoreCase(username)) {
 
                 JOptionPane.showMessageDialog(
                         this,
@@ -1033,13 +1199,11 @@ public class AccountPanel extends JPanel {
 
     private void login() {
 
-        String username =
-                usernameField.getText().trim();
+        String username = usernameField.getText().trim();
 
-        String password =
-                String.valueOf(
-                        passwordField.getPassword()
-                );
+        String password = String.valueOf(
+                passwordField.getPassword()
+        );
 
         for (User user : users) {
 
@@ -1073,8 +1237,7 @@ public class AccountPanel extends JPanel {
     // SAVE USERS
     // =====================================
 
-    public static void saveUsers(
-            ArrayList<User> users) {
+    public static void saveUsers(ArrayList<User> users) {
 
         try (ObjectOutputStream out =
                 new ObjectOutputStream(
@@ -1112,8 +1275,7 @@ public class AccountPanel extends JPanel {
 
             return (ArrayList<User>) in.readObject();
 
-        } catch (IOException |
-                ClassNotFoundException e) {
+        } catch (IOException | ClassNotFoundException e) {
 
             return new ArrayList<>();
         }
@@ -1138,8 +1300,7 @@ public class AccountPanel extends JPanel {
 
             return (ArrayList<User>) in.readObject();
 
-        } catch (IOException |
-                ClassNotFoundException e) {
+        } catch (IOException | ClassNotFoundException e) {
 
             return new ArrayList<>();
         }
@@ -1195,11 +1356,7 @@ public class AccountPanel extends JPanel {
 
             g2.setPaint(glassGradient);
 
-            g2.fillRoundRect(
-                    0, 0,
-                    w, h,
-                    radius, radius
-            );
+            g2.fillRoundRect(0, 0, w, h, radius, radius);
 
             g2.setColor(new Color(
                     WHITE.getRed(),
@@ -1208,12 +1365,7 @@ public class AccountPanel extends JPanel {
                     75
             ));
 
-            g2.fillRoundRect(
-                    5, 4,
-                    w - 10,
-                    75,
-                    radius, radius
-            );
+            g2.fillRoundRect(5, 4, w - 10, 75, radius, radius);
 
             GradientPaint lowerTint = new GradientPaint(
                     0, h - 100,
@@ -1250,11 +1402,7 @@ public class AccountPanel extends JPanel {
 
             g2.setStroke(new BasicStroke(2f));
 
-            g2.drawRoundRect(
-                    1, 1,
-                    w - 3, h - 3,
-                    radius, radius
-            );
+            g2.drawRoundRect(1, 1, w - 3, h - 3, radius, radius);
 
             g2.setColor(new Color(
                     LAVENDER.getRed(),
@@ -1296,30 +1444,18 @@ public class AccountPanel extends JPanel {
                     SwingConstants.CENTER
             );
 
-            titleLabel.setFont(new Font(
-                    "Segoe UI", Font.BOLD, 27
-            ));
-
+            titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 27));
             titleLabel.setForeground(WHITE);
-
-            titleLabel.setBounds(
-                    25, 165, 400, 45
-            );
+            titleLabel.setBounds(25, 165, 400, 45);
 
             messageLabel = new JLabel(
                     "",
                     SwingConstants.CENTER
             );
 
-            messageLabel.setFont(new Font(
-                    "Segoe UI", Font.PLAIN, 12
-            ));
-
+            messageLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
             messageLabel.setForeground(WHITE);
-
-            messageLabel.setBounds(
-                    25, 215, 400, 50
-            );
+            messageLabel.setBounds(25, 215, 400, 50);
 
             actionButton = new GlassButton(
                     "SIGN UP",
@@ -1327,9 +1463,7 @@ public class AccountPanel extends JPanel {
                     DEEP_PLUM
             );
 
-            actionButton.setBounds(
-                    150, 295, 150, 40
-            );
+            actionButton.setBounds(150, 295, 150, 40);
 
             add(titleLabel);
             add(messageLabel);
@@ -1374,11 +1508,7 @@ public class AccountPanel extends JPanel {
 
             g2.setPaint(gradient);
 
-            g2.fillRoundRect(
-                    0, 0,
-                    w, h,
-                    35, 35
-            );
+            g2.fillRoundRect(0, 0, w, h, 35, 35);
 
             g2.setColor(new Color(
                     WHITE.getRed(),
@@ -1387,12 +1517,7 @@ public class AccountPanel extends JPanel {
                     45
             ));
 
-            g2.fillRoundRect(
-                    4, 3,
-                    w - 8,
-                    85,
-                    32, 32
-            );
+            g2.fillRoundRect(4, 3, w - 8, 85, 32, 32);
 
             g2.setColor(new Color(
                     PINK_LAVENDER.getRed(),
@@ -1401,12 +1526,7 @@ public class AccountPanel extends JPanel {
                     45
             ));
 
-            g2.fillOval(
-                    w - 125,
-                    -65,
-                    170,
-                    170
-            );
+            g2.fillOval(w - 125, -65, 170, 170);
 
             g2.setColor(new Color(
                     MAUVE.getRed(),
@@ -1415,12 +1535,7 @@ public class AccountPanel extends JPanel {
                     45
             ));
 
-            g2.fillOval(
-                    -75,
-                    h - 115,
-                    170,
-                    170
-            );
+            g2.fillOval(-75, h - 115, 170, 170);
 
             g2.setColor(new Color(
                     WHITE.getRed(),
@@ -1431,12 +1546,7 @@ public class AccountPanel extends JPanel {
 
             g2.setStroke(new BasicStroke(2f));
 
-            g2.drawRoundRect(
-                    2, 2,
-                    w - 5,
-                    h - 5,
-                    34, 34
-            );
+            g2.drawRoundRect(2, 2, w - 5, h - 5, 34, 34);
 
             g2.setColor(new Color(
                     BLUSH.getRed(),
@@ -1447,12 +1557,7 @@ public class AccountPanel extends JPanel {
 
             g2.setStroke(new BasicStroke(1f));
 
-            g2.drawRoundRect(
-                    5, 5,
-                    w - 11,
-                    h - 11,
-                    30, 30
-            );
+            g2.drawRoundRect(5, 5, w - 11, h - 11, 30, 30);
 
             g2.dispose();
         }
