@@ -2,13 +2,14 @@
 package com.mycompany.doornal;
 
 import javax.swing.*;
+import javax.swing.border.MatteBorder;
 import java.awt.*;
 import java.awt.event.*;
-import java.awt.geom.RoundRectangle2D;
+import java.awt.geom.*;
 import java.io.IOException;
 import java.nio.file.*;
 import java.time.*;
-import java.time.format.TextStyle;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.List;
 
@@ -23,14 +24,23 @@ public class CalendarPanel extends JPanel {
     private JLabel totalEntriesLabel;
     private JLabel mostFrequentLabel;
     private JLabel daysTrackedLabel;
+    private JLabel streakLabel;
 
     private JPanel weeklyChartPanel;
     private JPanel recentEntriesPanel;
     private JLabel quoteLabel;
 
+    // NEW FEATURES
+    private MoodDistributionPanel moodDistributionPanel;
+    private JLabel previewDateLabel;
+    private JLabel previewMoodLabel;
+    private JLabel previewTextLabel;
+
     private Map<LocalDate, String> moodEntries = new HashMap<>();
 
-    // DOORNAL COLORS
+    // =========================================
+    // DOORNAL GLASS COLOR PALETTE
+    // =========================================
 
     private final Color BLUSH = new Color(0xFC, 0xE1, 0xDD);
     private final Color PEACH = new Color(0xFC, 0xD3, 0xBF);
@@ -41,7 +51,12 @@ public class CalendarPanel extends JPanel {
     private final Color DEEP_PLUM = new Color(0x29, 0x22, 0x3F);
     private final Color WHITE = new Color(255, 252, 252);
 
+    private final Color CYAN = new Color(116, 235, 232);
+    private final Color LIGHT_CYAN = new Color(198, 255, 250);
+
+    // =========================================
     // EMOTION COLORS
+    // =========================================
 
     private final Color HAPPY_COLOR = new Color(255, 224, 145);
     private final Color SAD_COLOR = new Color(166, 205, 244);
@@ -54,7 +69,9 @@ public class CalendarPanel extends JPanel {
         "Happy", "Sad", "Tired", "Envy", "Fear", "Angry"
     };
 
+    // =========================================
     // CONSTRUCTOR
+    // =========================================
 
     public CalendarPanel() {
 
@@ -69,14 +86,15 @@ public class CalendarPanel extends JPanel {
         );
 
         loadMoodEntries();
-
         createDashboard();
 
         updateCalendar();
         refreshDashboard();
     }
 
+    // =========================================
     // MAIN DASHBOARD
+    // =========================================
 
     private void createDashboard() {
 
@@ -103,7 +121,6 @@ public class CalendarPanel extends JPanel {
         rightPanel.add(createRecentEntries());
 
         JPanel centerPanel = createCalendarCard();
-
         JPanel bottomPanel = createReflectionCard();
 
         add(leftPanel, BorderLayout.WEST);
@@ -112,7 +129,9 @@ public class CalendarPanel extends JPanel {
         add(bottomPanel, BorderLayout.SOUTH);
     }
 
-    // MONTHLY SUMMARY CARD
+    // =========================================
+    // MONTHLY SUMMARY
+    // =========================================
 
     private JPanel createMonthlySummary() {
 
@@ -122,16 +141,17 @@ public class CalendarPanel extends JPanel {
             new BoxLayout(card, BoxLayout.Y_AXIS)
         );
 
-        card.setPreferredSize(new Dimension(205, 220));
-        card.setMaximumSize(new Dimension(205, 220));
-
-        JLabel title = createTitle("Monthly Summary");
+        card.setPreferredSize(new Dimension(205, 255));
+        card.setMaximumSize(new Dimension(205, 255));
 
         totalEntriesLabel = createBigNumber("0");
         mostFrequentLabel = createInfoLabel("No entries yet");
         daysTrackedLabel = createInfoLabel("0 days");
 
-        card.add(title);
+        // NEW: STREAK LABEL
+        streakLabel = createInfoLabel("0 days");
+
+        card.add(createTitle("Monthly Summary"));
         card.add(Box.createVerticalStrut(17));
 
         card.add(createSmallLabel("TOTAL ENTRIES"));
@@ -147,10 +167,17 @@ public class CalendarPanel extends JPanel {
         card.add(createSmallLabel("DAYS TRACKED"));
         card.add(daysTrackedLabel);
 
+        // NEW: JOURNALING STREAK
+        card.add(Box.createVerticalStrut(12));
+        card.add(createSmallLabel("CURRENT STREAK"));
+        card.add(streakLabel);
+
         return card;
     }
 
-    // EMOTION LEGEND
+    // =========================================
+    // EMOTION LEGEND + MOOD DISTRIBUTION
+    // =========================================
 
     private JPanel createEmotionLegend() {
 
@@ -160,11 +187,11 @@ public class CalendarPanel extends JPanel {
             new BoxLayout(card, BoxLayout.Y_AXIS)
         );
 
-        card.setPreferredSize(new Dimension(205, 250));
-        card.setMaximumSize(new Dimension(205, 250));
+        card.setPreferredSize(new Dimension(205, 390));
+        card.setMaximumSize(new Dimension(205, 390));
 
         card.add(createTitle("Emotion Legend"));
-        card.add(Box.createVerticalStrut(17));
+        card.add(Box.createVerticalStrut(12));
 
         addLegendItem(card, "Happy", HAPPY_COLOR);
         addLegendItem(card, "Sad", SAD_COLOR);
@@ -172,6 +199,28 @@ public class CalendarPanel extends JPanel {
         addLegendItem(card, "Envy", ENVY_COLOR);
         addLegendItem(card, "Fear", FEAR_COLOR);
         addLegendItem(card, "Angry", ANGRY_COLOR);
+
+        // NEW: DONUT CHART TITLE
+        card.add(Box.createVerticalStrut(10));
+        card.add(createTitle("Mood Distribution"));
+        card.add(Box.createVerticalStrut(5));
+
+        // NEW: DONUT CHART
+        moodDistributionPanel = new MoodDistributionPanel();
+
+        moodDistributionPanel.setPreferredSize(
+            new Dimension(170, 125)
+        );
+
+        moodDistributionPanel.setMaximumSize(
+            new Dimension(170, 125)
+        );
+
+        moodDistributionPanel.setAlignmentX(
+            Component.LEFT_ALIGNMENT
+        );
+
+        card.add(moodDistributionPanel);
 
         return card;
     }
@@ -189,14 +238,31 @@ public class CalendarPanel extends JPanel {
         item.setOpaque(false);
         item.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JPanel dot = new JPanel();
-        dot.setBackground(color);
-        dot.setPreferredSize(new Dimension(13, 13));
-        dot.setBorder(
-            BorderFactory.createLineBorder(
-                new Color(255, 255, 255, 180)
-            )
-        );
+        JPanel dot = new JPanel() {
+
+            @Override
+            protected void paintComponent(Graphics g) {
+
+                Graphics2D g2 = (Graphics2D) g.create();
+
+                g2.setRenderingHint(
+                    RenderingHints.KEY_ANTIALIASING,
+                    RenderingHints.VALUE_ANTIALIAS_ON
+                );
+
+                g2.setColor(color);
+                g2.fillOval(0, 0, getWidth() - 1, getHeight() - 1);
+
+                g2.setColor(new Color(255, 255, 255, 220));
+                g2.setStroke(new BasicStroke(1.5f));
+                g2.drawOval(0, 0, getWidth() - 1, getHeight() - 1);
+
+                g2.dispose();
+            }
+        };
+
+        dot.setOpaque(false);
+        dot.setPreferredSize(new Dimension(14, 14));
 
         JLabel label = new JLabel(name);
         label.setFont(new Font("Arial", Font.PLAIN, 13));
@@ -208,7 +274,9 @@ public class CalendarPanel extends JPanel {
         panel.add(item);
     }
 
+    // =========================================
     // WEEKLY OVERVIEW
+    // =========================================
 
     private JPanel createWeeklyOverview() {
 
@@ -223,11 +291,8 @@ public class CalendarPanel extends JPanel {
 
         card.add(createTitle("Weekly Overview"));
         card.add(Box.createVerticalStrut(5));
-
-        JLabel subtitle = createSmallLabel("THIS WEEK");
-        card.add(subtitle);
-
-        card.add(Box.createVerticalStrut(12));
+        card.add(createSmallLabel("THIS WEEK"));
+        card.add(Box.createVerticalStrut(15));
 
         weeklyChartPanel = new JPanel();
 
@@ -242,7 +307,9 @@ public class CalendarPanel extends JPanel {
         return card;
     }
 
+    // =========================================
     // RECENT ENTRIES
+    // =========================================
 
     private JPanel createRecentEntries() {
 
@@ -271,25 +338,26 @@ public class CalendarPanel extends JPanel {
         return card;
     }
 
-    // CALENDAR CARD
+    // =========================================
+    // MAIN CALENDAR CARD
+    // =========================================
 
     private JPanel createCalendarCard() {
 
         GlassCard card = new GlassCard();
 
-        card.setLayout(new BorderLayout(12, 18));
+        card.setLayout(new BorderLayout(12, 12));
+
+        // HEADER
 
         JPanel header = new JPanel(
-            new BorderLayout(10, 0)
+            new BorderLayout(12, 0)
         );
 
         header.setOpaque(false);
 
-        JButton previousButton = new JButton("‹");
-        JButton nextButton = new JButton("›");
-
-        styleArrowButton(previousButton);
-        styleArrowButton(nextButton);
+        JButton previousButton = new GlassArrowButton("‹");
+        JButton nextButton = new GlassArrowButton("›");
 
         monthLabel = new JLabel(
             "",
@@ -318,8 +386,10 @@ public class CalendarPanel extends JPanel {
         header.add(monthLabel, BorderLayout.CENTER);
         header.add(nextButton, BorderLayout.EAST);
 
+        // CALENDAR CONTENT
+
         JPanel calendarContent = new JPanel(
-            new BorderLayout(0, 15)
+            new BorderLayout(0, 17)
         );
 
         calendarContent.setOpaque(false);
@@ -363,10 +433,180 @@ public class CalendarPanel extends JPanel {
         card.add(header, BorderLayout.NORTH);
         card.add(calendarContent, BorderLayout.CENTER);
 
+        // NEW: SELECTED DATE PREVIEW
+        JPanel previewPanel = createSelectedDatePreview();
+
+        card.add(previewPanel, BorderLayout.SOUTH);
+
         return card;
     }
 
+    // =========================================
+    // NEW: SELECTED DATE PREVIEW
+    // =========================================
+
+    private JPanel createSelectedDatePreview() {
+
+        JPanel preview = new JPanel(
+            new BorderLayout(10, 3)
+        );
+
+        preview.setOpaque(false);
+
+        preview.setBorder(
+            BorderFactory.createCompoundBorder(
+                new MatteBorder(
+                    1, 0, 0, 0,
+                    new Color(255, 255, 255, 190)
+                ),
+                BorderFactory.createEmptyBorder(
+                    9, 5, 2, 5
+                )
+            )
+        );
+
+        JPanel left = new JPanel();
+
+        left.setOpaque(false);
+
+        left.setLayout(
+            new BoxLayout(left, BoxLayout.Y_AXIS)
+        );
+
+        previewDateLabel = new JLabel("Selected Date");
+
+        previewDateLabel.setFont(
+            new Font("Arial", Font.BOLD, 13)
+        );
+
+        previewDateLabel.setForeground(DEEP_PLUM);
+
+        previewMoodLabel = new JLabel("No mood selected");
+
+        previewMoodLabel.setFont(
+            new Font("Arial", Font.BOLD, 11)
+        );
+
+        previewMoodLabel.setForeground(PURPLE);
+
+        previewTextLabel = new JLabel(
+            "Select a date to preview your journal."
+        );
+
+        previewTextLabel.setFont(
+            new Font("Arial", Font.ITALIC, 11)
+        );
+
+        previewTextLabel.setForeground(
+            new Color(91, 76, 112)
+        );
+
+        left.add(previewDateLabel);
+        left.add(Box.createVerticalStrut(3));
+        left.add(previewMoodLabel);
+
+        preview.add(left, BorderLayout.WEST);
+        preview.add(previewTextLabel, BorderLayout.CENTER);
+
+        return preview;
+    }
+
+    // =========================================
+    // UPDATE SELECTED DATE PREVIEW
+    // =========================================
+
+    private void updateSelectedDatePreview() {
+
+        if (selectedDate == null ||
+            previewDateLabel == null ||
+            previewMoodLabel == null ||
+            previewTextLabel == null) {
+
+            return;
+        }
+
+        previewDateLabel.setText(
+            selectedDate.format(
+                DateTimeFormatter.ofPattern("MMMM dd, yyyy")
+            )
+        );
+
+        String emotion = moodEntries.get(selectedDate);
+
+        if (emotion == null) {
+
+            previewMoodLabel.setText("No mood selected");
+
+        } else {
+
+            previewMoodLabel.setText("Mood: " + emotion);
+            previewMoodLabel.setForeground(
+                getEmotionColor(emotion).darker()
+            );
+        }
+
+        String username = CurrentUser.username;
+
+        if (username == null || username.trim().isEmpty()) {
+
+            previewTextLabel.setText(
+                "No journal preview available."
+            );
+
+            return;
+        }
+
+        Path journalFile = Path.of(
+            System.getProperty("user.home"),
+            "Doornal",
+            username,
+            "Journals",
+            selectedDate + ".txt"
+        );
+
+        try {
+
+            if (Files.exists(journalFile)) {
+
+                String content = Files.readString(
+                    journalFile
+                ).trim();
+
+                content = content.replaceAll("\\s+", " ");
+
+                if (content.isEmpty()) {
+
+                    previewTextLabel.setText(
+                        "Your journal is currently empty."
+                    );
+
+                } else {
+
+                    if (content.length() > 100) {
+                        content = content.substring(0, 97) + "...";
+                    }
+
+                    previewTextLabel.setText(content);
+                }
+
+            } else {
+
+                previewTextLabel.setText(
+                    "No journal entry for this date yet."
+                );
+            }
+
+        } catch (IOException e) {
+
+            previewTextLabel.setText(
+                "Unable to load journal preview."
+            );
+        }
+    }
+
+    // =========================================
     // DAILY REFLECTION
+    // =========================================
 
     private JPanel createReflectionCard() {
 
@@ -380,9 +620,11 @@ public class CalendarPanel extends JPanel {
         icon.setForeground(PURPLE);
 
         JPanel textPanel = new JPanel();
+
         textPanel.setLayout(
             new BoxLayout(textPanel, BoxLayout.Y_AXIS)
         );
+
         textPanel.setOpaque(false);
 
         JLabel title = new JLabel("A LITTLE REMINDER");
@@ -405,7 +647,9 @@ public class CalendarPanel extends JPanel {
         return card;
     }
 
+    // =========================================
     // REFRESH DASHBOARD DATA
+    // =========================================
 
     public void refreshDashboard() {
 
@@ -428,6 +672,7 @@ public class CalendarPanel extends JPanel {
                 String emotion = entry.getValue();
 
                 if (counts.containsKey(emotion)) {
+
                     counts.put(
                         emotion,
                         counts.get(emotion) + 1
@@ -456,15 +701,67 @@ public class CalendarPanel extends JPanel {
         mostFrequentLabel.setText(mostFrequent);
         daysTrackedLabel.setText(daysTracked + " days");
 
+        // NEW: UPDATE STREAK
+        updateStreak();
+
+        // NEW: UPDATE DONUT CHART
+        if (moodDistributionPanel != null) {
+            moodDistributionPanel.setCounts(counts, total);
+        }
+
         updateWeeklyChart();
         updateRecentEntries();
         updateReflection();
+
+        // NEW: UPDATE SELECTED DATE PREVIEW
+        updateSelectedDatePreview();
 
         revalidate();
         repaint();
     }
 
+    // =========================================
+    // NEW: JOURNALING STREAK TRACKER
+    // =========================================
+
+    private void updateStreak() {
+
+        if (streakLabel == null) {
+            return;
+        }
+
+        int streak = calculateCurrentStreak();
+
+        streakLabel.setText(
+            streak + (streak == 1 ? " day" : " days")
+        );
+    }
+
+    private int calculateCurrentStreak() {
+
+        LocalDate date = LocalDate.now();
+
+        // If today has no mood entry, allow the streak
+        // to continue from yesterday.
+        if (!moodEntries.containsKey(date)) {
+            date = date.minusDays(1);
+        }
+
+        int streak = 0;
+
+        while (moodEntries.containsKey(date)) {
+
+            streak++;
+
+            date = date.minusDays(1);
+        }
+
+        return streak;
+    }
+
+    // =========================================
     // LOAD SAVED EMOTIONS
+    // =========================================
 
     private void loadMoodEntries() {
 
@@ -510,7 +807,7 @@ public class CalendarPanel extends JPanel {
                     }
 
                 } catch (Exception ignored) {
-                    // Skip files with invalid dates or contents.
+                    // Skip invalid files.
                 }
             }
 
@@ -519,7 +816,9 @@ public class CalendarPanel extends JPanel {
         }
     }
 
+    // =========================================
     // WEEKLY CHART
+    // =========================================
 
     private void updateWeeklyChart() {
 
@@ -544,6 +843,7 @@ public class CalendarPanel extends JPanel {
             String emotion = moodEntries.get(date);
 
             if (emotion != null && counts.containsKey(emotion)) {
+
                 counts.put(
                     emotion,
                     counts.get(emotion) + 1
@@ -585,8 +885,6 @@ public class CalendarPanel extends JPanel {
                 @Override
                 protected void paintComponent(Graphics g) {
 
-                    super.paintComponent(g);
-
                     Graphics2D g2 = (Graphics2D) g.create();
 
                     g2.setRenderingHint(
@@ -597,10 +895,12 @@ public class CalendarPanel extends JPanel {
                     int width = getWidth();
                     int height = getHeight();
 
-                    g2.setColor(new Color(230, 221, 239));
+                    g2.setColor(
+                        new Color(225, 218, 240, 180)
+                    );
 
                     g2.fillRoundRect(
-                        0, 0, width, height, 10, 10
+                        0, 0, width, height, 12, 12
                     );
 
                     if (count > 0) {
@@ -610,13 +910,34 @@ public class CalendarPanel extends JPanel {
                             (int) (width * count / 7.0)
                         );
 
-                        g2.setColor(getEmotionColor(emotion));
+                        Color emotionColor =
+                            getEmotionColor(emotion);
+
+                        GradientPaint gradient = new GradientPaint(
+                            0, 0,
+                            emotionColor.brighter(),
+                            fillWidth, height,
+                            emotionColor
+                        );
+
+                        g2.setPaint(gradient);
 
                         g2.fillRoundRect(
                             0, 0,
                             fillWidth,
                             height,
-                            10, 10
+                            12, 12
+                        );
+
+                        g2.setColor(
+                            new Color(255, 255, 255, 150)
+                        );
+
+                        g2.drawRoundRect(
+                            1, 1,
+                            Math.max(1, fillWidth - 2),
+                            height - 3,
+                            12, 12
                         );
                     }
 
@@ -643,7 +964,9 @@ public class CalendarPanel extends JPanel {
         weeklyChartPanel.repaint();
     }
 
+    // =========================================
     // RECENT JOURNAL ENTRIES
+    // =========================================
 
     private void updateRecentEntries() {
 
@@ -665,41 +988,24 @@ public class CalendarPanel extends JPanel {
 
             String emotion = moodEntries.get(date);
 
-            JButton entryButton = new JButton(
-                "<html><b>" + date.format(
-                    java.time.format.DateTimeFormatter.ofPattern("MMM d")
-                ) + "</b><br><font color='#8E8AD9'>"
-                + emotion + "</font></html>"
+            JButton entryButton = new GlassEntryButton(
+                date.format(
+                    DateTimeFormatter.ofPattern("MMM d")
+                ),
+                emotion,
+                getEmotionColor(emotion)
             );
 
-            entryButton.setHorizontalAlignment(
-                SwingConstants.LEFT
-            );
-
-            entryButton.setFont(
-                new Font("Arial", Font.PLAIN, 12)
-            );
-
-            entryButton.setForeground(DEEP_PLUM);
-            entryButton.setBackground(new Color(255, 255, 255, 130));
-
-            entryButton.setFocusPainted(false);
-            entryButton.setBorder(
-                BorderFactory.createEmptyBorder(7, 9, 7, 9)
-            );
-
-            entryButton.setCursor(
-                new Cursor(Cursor.HAND_CURSOR)
-            );
+            entryButton.addActionListener(e -> openJournal(date));
 
             entryButton.setMaximumSize(
                 new Dimension(Integer.MAX_VALUE, 48)
             );
 
-            entryButton.addActionListener(e -> openJournal(date));
+            entryButton.setAlignmentX(Component.LEFT_ALIGNMENT);
 
             recentEntriesPanel.add(entryButton);
-            recentEntriesPanel.add(Box.createVerticalStrut(7));
+            recentEntriesPanel.add(Box.createVerticalStrut(8));
 
             shown++;
         }
@@ -721,7 +1027,9 @@ public class CalendarPanel extends JPanel {
         recentEntriesPanel.repaint();
     }
 
+    // =========================================
     // REFLECTION QUOTES
+    // =========================================
 
     private void updateReflection() {
 
@@ -741,11 +1049,17 @@ public class CalendarPanel extends JPanel {
         quoteLabel.setText("\"" + quotes[index] + "\"");
     }
 
+    // =========================================
     // OPEN JOURNAL
+    // =========================================
 
     private void openJournal(LocalDate date) {
 
         selectedDate = date;
+
+        // Update preview before opening the editor.
+        updateCalendar();
+        updateSelectedDatePreview();
 
         JournalEditor editor = new JournalEditor(date);
 
@@ -754,6 +1068,7 @@ public class CalendarPanel extends JPanel {
 
                 @Override
                 public void windowClosed(WindowEvent e) {
+                    loadMoodEntries();
                     updateCalendar();
                     refreshDashboard();
                 }
@@ -763,7 +1078,9 @@ public class CalendarPanel extends JPanel {
         editor.setVisible(true);
     }
 
+    // =========================================
     // UPDATE CALENDAR
+    // =========================================
 
     private void updateCalendar() {
 
@@ -804,6 +1121,10 @@ public class CalendarPanel extends JPanel {
                 getEmotionColor(moodEntries.get(date))
             );
 
+            button.setHasMood(
+                moodEntries.containsKey(date)
+            );
+
             button.setToday(date.equals(today));
             button.setSelectedDate(date.equals(selectedDate));
 
@@ -832,12 +1153,14 @@ public class CalendarPanel extends JPanel {
         datesPanel.repaint();
     }
 
+    // =========================================
     // EMOTION COLOR LOOKUP
+    // =========================================
 
     private Color getEmotionColor(String emotion) {
 
         if (emotion == null) {
-            return BLUSH;
+            return new Color(255, 255, 255, 175);
         }
 
         switch (emotion) {
@@ -851,28 +1174,9 @@ public class CalendarPanel extends JPanel {
         }
     }
 
-    // BUTTON STYLING
-
-    private void styleArrowButton(JButton button) {
-
-        button.setFont(
-            new Font("Arial", Font.BOLD, 38)
-        );
-
-        button.setForeground(PURPLE);
-        button.setPreferredSize(new Dimension(48, 48));
-
-        button.setFocusPainted(false);
-        button.setBorderPainted(false);
-        button.setContentAreaFilled(false);
-        button.setOpaque(false);
-
-        button.setCursor(
-            new Cursor(Cursor.HAND_CURSOR)
-        );
-    }
-
+    // =========================================
     // LABEL HELPERS
+    // =========================================
 
     private JLabel createTitle(String text) {
 
@@ -883,7 +1187,6 @@ public class CalendarPanel extends JPanel {
         );
 
         label.setForeground(DEEP_PLUM);
-
         label.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         return label;
@@ -898,7 +1201,6 @@ public class CalendarPanel extends JPanel {
         );
 
         label.setForeground(MAUVE);
-
         label.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         return label;
@@ -913,7 +1215,6 @@ public class CalendarPanel extends JPanel {
         );
 
         label.setForeground(PURPLE);
-
         label.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         return label;
@@ -928,13 +1229,164 @@ public class CalendarPanel extends JPanel {
         );
 
         label.setForeground(DEEP_PLUM);
-
         label.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         return label;
     }
 
+    // =========================================
+    // NEW: MOOD DISTRIBUTION DONUT CHART
+    // =========================================
+
+    private class MoodDistributionPanel extends JPanel {
+
+        private Map<String, Integer> counts = new HashMap<>();
+        private int total = 0;
+
+        public MoodDistributionPanel() {
+            setOpaque(false);
+
+            for (String emotion : emotions) {
+                counts.put(emotion, 0);
+            }
+        }
+
+        public void setCounts(
+            Map<String, Integer> newCounts,
+            int newTotal
+        ) {
+
+            counts = new HashMap<>(newCounts);
+            total = newTotal;
+
+            repaint();
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+
+            super.paintComponent(g);
+
+            Graphics2D g2 = (Graphics2D) g.create();
+
+            g2.setRenderingHint(
+                RenderingHints.KEY_ANTIALIASING,
+                RenderingHints.VALUE_ANTIALIAS_ON
+            );
+
+            int size = Math.min(
+                getHeight() - 8,
+                getWidth() - 35
+            );
+
+            if (size <= 0) {
+                g2.dispose();
+                return;
+            }
+
+            int x = (getWidth() - size) / 2;
+            int y = (getHeight() - size) / 2;
+
+            double startAngle = 90;
+
+            if (total == 0) {
+
+                g2.setColor(
+                    new Color(225, 218, 240, 210)
+                );
+
+                g2.fill(new Ellipse2D.Double(
+                    x, y, size, size
+                ));
+
+            } else {
+
+                for (String emotion : emotions) {
+
+                    int count = counts.getOrDefault(
+                        emotion, 0
+                    );
+
+                    if (count <= 0) {
+                        continue;
+                    }
+
+                    double extent =
+                        count / (double) total * 360.0;
+
+                    g2.setColor(getEmotionColor(emotion));
+
+                    g2.fill(
+                        new Arc2D.Double(
+                            x, y,
+                            size, size,
+                            startAngle,
+                            -extent,
+                            Arc2D.PIE
+                        )
+                    );
+
+                    startAngle -= extent;
+                }
+            }
+
+            // CENTER HOLE
+
+            int holeSize = (int) (size * 0.57);
+
+            int holeX = x + (size - holeSize) / 2;
+            int holeY = y + (size - holeSize) / 2;
+
+            g2.setColor(new Color(255, 252, 252, 245));
+
+            g2.fillOval(
+                holeX,
+                holeY,
+                holeSize,
+                holeSize
+            );
+
+            // CENTER TEXT
+
+            String totalText = String.valueOf(total);
+
+            g2.setFont(
+                new Font("Arial", Font.BOLD, 18)
+            );
+
+            g2.setColor(DEEP_PLUM);
+
+            FontMetrics fm = g2.getFontMetrics();
+
+            g2.drawString(
+                totalText,
+                getWidth() / 2 - fm.stringWidth(totalText) / 2,
+                getHeight() / 2 + 2
+            );
+
+            g2.setFont(
+                new Font("Arial", Font.PLAIN, 9)
+            );
+
+            g2.setColor(MAUVE);
+
+            String subtitle = "entries";
+
+            fm = g2.getFontMetrics();
+
+            g2.drawString(
+                subtitle,
+                getWidth() / 2 - fm.stringWidth(subtitle) / 2,
+                getHeight() / 2 + 16
+            );
+
+            g2.dispose();
+        }
+    }
+
+    // =========================================
     // GLASS CARD
+    // =========================================
 
     private class GlassCard extends JPanel {
 
@@ -962,46 +1414,110 @@ public class CalendarPanel extends JPanel {
             int width = getWidth();
             int height = getHeight();
 
-            // SHADOW
+            // SOFT SHADOW
 
-            g2.setColor(new Color(70, 45, 90, 25));
+            g2.setColor(new Color(55, 42, 86, 35));
 
             g2.fillRoundRect(
-                3, 5,
+                3, 6,
                 width - 7,
-                height - 8,
-                25, 25
+                height - 9,
+                30, 30
             );
 
-            // GLASS SURFACE
+            // OUTER GLOW
 
-            GradientPaint gradient = new GradientPaint(
+            g2.setColor(new Color(194, 176, 239, 25));
+
+            g2.setStroke(new BasicStroke(5f));
+
+            g2.drawRoundRect(
+                2, 2,
+                width - 7,
+                height - 9,
+                30, 30
+            );
+
+            // GLASS GRADIENT
+
+            GradientPaint glass = new GradientPaint(
                 0, 0,
-                new Color(255, 255, 255, 245),
+                new Color(255, 255, 255, 205),
                 width, height,
-                new Color(249, 239, 250, 235)
+                new Color(230, 220, 246, 155)
             );
 
-            g2.setPaint(gradient);
+            g2.setPaint(glass);
 
             g2.fillRoundRect(
                 0, 0,
-                width - 5,
-                height - 7,
+                width - 6,
+                height - 8,
+                29, 29
+            );
+
+            // TOP GLASS HIGHLIGHT
+
+            GradientPaint highlight = new GradientPaint(
+                0, 0,
+                new Color(255, 255, 255, 115),
+                0, height / 2,
+                new Color(255, 255, 255, 0)
+            );
+
+            g2.setPaint(highlight);
+
+            g2.fillRoundRect(
+                3, 3,
+                width - 12,
+                height / 2,
                 25, 25
             );
 
-            // GLASS BORDER
+            // OUTER WHITE BORDER
 
-            g2.setColor(new Color(255, 255, 255, 210));
+            g2.setColor(new Color(255, 255, 255, 220));
 
-            g2.setStroke(new BasicStroke(1.5f));
+            g2.setStroke(new BasicStroke(1.7f));
 
             g2.drawRoundRect(
                 1, 1,
-                width - 7,
-                height - 9,
+                width - 8,
+                height - 10,
+                29, 29
+            );
+
+            // INNER LAVENDER BORDER
+
+            g2.setColor(new Color(194, 176, 239, 100));
+
+            g2.setStroke(new BasicStroke(1f));
+
+            g2.drawRoundRect(
+                4, 4,
+                width - 14,
+                height - 16,
                 25, 25
+            );
+
+            // SMALL TOP REFLECTION
+
+            g2.setColor(new Color(255, 255, 255, 115));
+
+            g2.setStroke(
+                new BasicStroke(
+                    2f,
+                    BasicStroke.CAP_ROUND,
+                    BasicStroke.JOIN_ROUND
+                )
+            );
+
+            g2.drawArc(
+                15, 5,
+                width - 35,
+                28,
+                10,
+                150
             );
 
             g2.dispose();
@@ -1010,12 +1526,319 @@ public class CalendarPanel extends JPanel {
         }
     }
 
-    // DATE BUTTON
+    // =========================================
+    // GLASS ARROW BUTTON
+    // =========================================
+
+    private class GlassArrowButton extends JButton {
+
+        private boolean hovering = false;
+        private boolean pressed = false;
+
+        public GlassArrowButton(String text) {
+
+            super(text);
+
+            setFont(new Font("Arial", Font.BOLD, 32));
+            setForeground(PURPLE);
+
+            setFocusPainted(false);
+            setBorderPainted(false);
+            setContentAreaFilled(false);
+            setOpaque(false);
+
+            setCursor(
+                new Cursor(Cursor.HAND_CURSOR)
+            );
+
+            setPreferredSize(new Dimension(49, 45));
+
+            addMouseListener(new MouseAdapter() {
+
+                @Override
+                public void mouseEntered(MouseEvent e) {
+                    hovering = true;
+                    repaint();
+                }
+
+                @Override
+                public void mouseExited(MouseEvent e) {
+                    hovering = false;
+                    pressed = false;
+                    repaint();
+                }
+
+                @Override
+                public void mousePressed(MouseEvent e) {
+                    pressed = true;
+                    repaint();
+                }
+
+                @Override
+                public void mouseReleased(MouseEvent e) {
+                    pressed = false;
+                    repaint();
+                }
+            });
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+
+            Graphics2D g2 = (Graphics2D) g.create();
+
+            g2.setRenderingHint(
+                RenderingHints.KEY_ANTIALIASING,
+                RenderingHints.VALUE_ANTIALIAS_ON
+            );
+
+            int w = getWidth();
+            int h = getHeight();
+
+            int inset = pressed ? 3 : 1;
+
+            // SHADOW
+
+            g2.setColor(new Color(69, 48, 100, 35));
+
+            g2.fillRoundRect(
+                inset + 1,
+                inset + 3,
+                w - 7,
+                h - 7,
+                22, 22
+            );
+
+            // GLASS BUTTON
+
+            GradientPaint gradient = new GradientPaint(
+                0, 0,
+                hovering
+                    ? new Color(255, 255, 255, 245)
+                    : new Color(255, 255, 255, 205),
+                w, h,
+                hovering
+                    ? new Color(207, 194, 245, 230)
+                    : new Color(229, 219, 247, 180)
+            );
+
+            g2.setPaint(gradient);
+
+            g2.fillRoundRect(
+                inset,
+                inset,
+                w - 7,
+                h - 8,
+                22, 22
+            );
+
+            // BORDER
+
+            g2.setColor(
+                hovering
+                    ? new Color(255, 255, 255, 255)
+                    : new Color(255, 255, 255, 205)
+            );
+
+            g2.setStroke(new BasicStroke(1.6f));
+
+            g2.drawRoundRect(
+                inset,
+                inset,
+                w - 7,
+                h - 8,
+                22, 22
+            );
+
+            // ARROW
+
+            g2.setFont(getFont());
+            g2.setColor(PURPLE);
+
+            FontMetrics fm = g2.getFontMetrics();
+
+            String text = getText();
+
+            int x = (w - fm.stringWidth(text)) / 2;
+            int y = (h - fm.getHeight()) / 2 + fm.getAscent() - 2;
+
+            g2.drawString(text, x, y);
+
+            g2.dispose();
+        }
+    }
+
+    // =========================================
+    // GLASS RECENT ENTRY BUTTON
+    // =========================================
+
+    private class GlassEntryButton extends JButton {
+
+        private final String dateText;
+        private final String emotion;
+        private final Color emotionColor;
+
+        private boolean hovering = false;
+
+        public GlassEntryButton(
+            String dateText,
+            String emotion,
+            Color emotionColor
+        ) {
+
+            this.dateText = dateText;
+            this.emotion = emotion;
+            this.emotionColor = emotionColor;
+
+            setText("");
+            setOpaque(false);
+            setContentAreaFilled(false);
+            setBorderPainted(false);
+            setFocusPainted(false);
+
+            setCursor(
+                new Cursor(Cursor.HAND_CURSOR)
+            );
+
+            setPreferredSize(new Dimension(180, 48));
+
+            addMouseListener(new MouseAdapter() {
+
+                @Override
+                public void mouseEntered(MouseEvent e) {
+                    hovering = true;
+                    repaint();
+                }
+
+                @Override
+                public void mouseExited(MouseEvent e) {
+                    hovering = false;
+                    repaint();
+                }
+            });
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+
+            Graphics2D g2 = (Graphics2D) g.create();
+
+            g2.setRenderingHint(
+                RenderingHints.KEY_ANTIALIASING,
+                RenderingHints.VALUE_ANTIALIAS_ON
+            );
+
+            int w = getWidth();
+            int h = getHeight();
+
+            // SHADOW
+
+            g2.setColor(new Color(65, 45, 90, 25));
+
+            g2.fillRoundRect(
+                2, 4,
+                w - 5,
+                h - 6,
+                18, 18
+            );
+
+            // GLASS SURFACE
+
+            GradientPaint gradient = new GradientPaint(
+                0, 0,
+                new Color(255, 255, 255, 225),
+                w, h,
+                new Color(226, 216, 244, 175)
+            );
+
+            g2.setPaint(gradient);
+
+            g2.fillRoundRect(
+                0, 0,
+                w - 5,
+                h - 7,
+                18, 18
+            );
+
+            // EMOTION ACCENT
+
+            g2.setColor(emotionColor);
+
+            g2.fillRoundRect(
+                5, 9,
+                5,
+                h - 25,
+                8, 8
+            );
+
+            // BORDER
+
+            g2.setColor(new Color(255, 255, 255, 220));
+
+            g2.setStroke(new BasicStroke(1.3f));
+
+            g2.drawRoundRect(
+                1, 1,
+                w - 7,
+                h - 9,
+                18, 18
+            );
+
+            // TEXT
+
+            g2.setColor(DEEP_PLUM);
+
+            g2.setFont(
+                new Font("Arial", Font.BOLD, 12)
+            );
+
+            g2.drawString(dateText, 17, 20);
+
+            g2.setFont(
+                new Font("Arial", Font.PLAIN, 11)
+            );
+
+            g2.setColor(PURPLE);
+
+            g2.drawString(emotion, 17, 36);
+
+            // HOVER HIGHLIGHT
+
+            if (hovering) {
+
+                g2.setColor(
+                    new Color(255, 255, 255, 75)
+                );
+
+                g2.fillRoundRect(
+                    2, 2,
+                    w - 9,
+                    h / 2,
+                    16, 16
+                );
+            }
+
+            g2.dispose();
+        }
+    }
+
+    // =========================================
+    // ROUNDED GLASS DATE BUTTON
+    // =========================================
 
     private class RoundedDateButton extends JButton {
 
         private boolean today;
         private boolean selectedDate;
+        private boolean hovering = false;
+        private boolean pressed = false;
+
+        // NEW: INDICATES WHETHER THE DATE HAS A MOOD
+        private boolean hasMood = false;
+
+        private Color moodColor = new Color(
+            255, 255, 255, 180
+        );
 
         public RoundedDateButton(String text) {
 
@@ -1035,6 +1858,43 @@ public class CalendarPanel extends JPanel {
             setCursor(
                 new Cursor(Cursor.HAND_CURSOR)
             );
+
+            addMouseListener(new MouseAdapter() {
+
+                @Override
+                public void mouseEntered(MouseEvent e) {
+                    hovering = true;
+                    repaint();
+                }
+
+                @Override
+                public void mouseExited(MouseEvent e) {
+                    hovering = false;
+                    pressed = false;
+                    repaint();
+                }
+
+                @Override
+                public void mousePressed(MouseEvent e) {
+                    pressed = true;
+                    repaint();
+                }
+
+                @Override
+                public void mouseReleased(MouseEvent e) {
+                    pressed = false;
+                    repaint();
+                }
+            });
+        }
+
+        @Override
+        public void setBackground(Color color) {
+            super.setBackground(color);
+
+            if (color != null) {
+                moodColor = color;
+            }
         }
 
         public void setToday(boolean value) {
@@ -1043,6 +1903,11 @@ public class CalendarPanel extends JPanel {
 
         public void setSelectedDate(boolean value) {
             selectedDate = value;
+        }
+
+        // NEW: SET MOOD INDICATOR
+        public void setHasMood(boolean value) {
+            hasMood = value;
         }
 
         @Override
@@ -1058,75 +1923,171 @@ public class CalendarPanel extends JPanel {
             int width = getWidth();
             int height = getHeight();
 
-            // SHADOW
+            int inset = pressed ? 4 : 1;
 
-            g2.setColor(new Color(60, 40, 90, 25));
-
-            g2.fillRoundRect(
-                2, 4,
-                width - 4,
-                height - 6,
-                19, 19
-            );
-
-            // DATE BACKGROUND
-
-            g2.setColor(getBackground());
-
-            g2.fillRoundRect(
-                1, 1,
-                width - 3,
-                height - 7,
-                19, 19
-            );
-
-            // HIGHLIGHT
-
-            g2.setColor(new Color(255, 255, 255, 90));
-
-            g2.drawRoundRect(
-                2, 2,
-                width - 5,
-                height - 9,
-                18, 18
-            );
-
-            // TODAY BORDER
-
-            if (today) {
-
-                g2.setColor(PURPLE);
-
-                g2.setStroke(new BasicStroke(3));
-
-                g2.drawRoundRect(
-                    3, 3,
-                    width - 7,
-                    height - 11,
-                    18, 18
-                );
-            }
-
-            // SELECTED DATE
+            // =================================
+            // SELECTED DATE PURPLE GLOW
+            // =================================
 
             if (selectedDate) {
 
-                g2.setColor(DEEP_PLUM);
+                g2.setColor(
+                    new Color(142, 138, 217, 65)
+                );
 
-                g2.setStroke(new BasicStroke(2));
+                g2.setStroke(new BasicStroke(6f));
 
                 g2.drawRoundRect(
-                    5, 5,
-                    width - 11,
-                    height - 15,
-                    16, 16
+                    1, 1,
+                    width - 5,
+                    height - 7,
+                    21, 21
                 );
             }
 
+            // =================================
+            // SOFT SHADOW
+            // =================================
+
+            g2.setColor(
+                new Color(59, 43, 88, hovering ? 45 : 28)
+            );
+
+            g2.fillRoundRect(
+                inset + 2,
+                inset + 5,
+                width - 7,
+                height - 10,
+                20, 20
+            );
+
+            // =================================
+            // SELECTED DATE GRADIENT
+            // =================================
+
+            if (selectedDate) {
+
+                GradientPaint selectedGradient =
+                    new GradientPaint(
+                        0, 0,
+                        new Color(173, 127, 255),
+                        width, height,
+                        new Color(115, 92, 220)
+                    );
+
+                g2.setPaint(selectedGradient);
+
+            } else {
+
+                Color base = moodColor;
+
+                if (hovering) {
+                    base = new Color(
+                        Math.min(255, base.getRed() + 18),
+                        Math.min(255, base.getGreen() + 18),
+                        Math.min(255, base.getBlue() + 18),
+                        base.getAlpha()
+                    );
+                }
+
+                GradientPaint glass = new GradientPaint(
+                    0, 0,
+                    new Color(
+                        Math.min(255, base.getRed() + 25),
+                        Math.min(255, base.getGreen() + 25),
+                        Math.min(255, base.getBlue() + 25),
+                        235
+                    ),
+                    width, height,
+                    new Color(
+                        base.getRed(),
+                        base.getGreen(),
+                        base.getBlue(),
+                        190
+                    )
+                );
+
+                g2.setPaint(glass);
+            }
+
+            g2.fillRoundRect(
+                inset,
+                inset,
+                width - 6,
+                height - 10,
+                20, 20
+            );
+
+            // =================================
+            // TOP GLASS REFLECTION
+            // =================================
+
+            GradientPaint highlight = new GradientPaint(
+                0, 0,
+                new Color(255, 255, 255, 135),
+                0, height / 2,
+                new Color(255, 255, 255, 0)
+            );
+
+            g2.setPaint(highlight);
+
+            g2.fillRoundRect(
+                inset + 2,
+                inset + 2,
+                width - 10,
+                height / 2,
+                17, 17
+            );
+
+            // =================================
+            // WHITE GLASS BORDER
+            // =================================
+
+            g2.setColor(
+                selectedDate
+                    ? new Color(255, 255, 255, 235)
+                    : new Color(255, 255, 255, 225)
+            );
+
+            g2.setStroke(new BasicStroke(1.6f));
+
+            g2.drawRoundRect(
+                inset,
+                inset,
+                width - 6,
+                height - 10,
+                20, 20
+            );
+
+            // =================================
+            // TODAY CYAN/PURPLE ACCENT
+            // =================================
+
+            if (today && !selectedDate) {
+
+                g2.setColor(CYAN);
+
+                g2.setStroke(new BasicStroke(2.2f));
+
+                g2.drawRoundRect(
+                    3, 3,
+                    width - 10,
+                    height - 14,
+                    17, 17
+                );
+            }
+
+            // =================================
             // DATE NUMBER
+            // =================================
 
             g2.setFont(getFont());
-            g2.setColor(getForeground());
+
+            g2.setColor(
+                selectedDate
+                    ? Color.WHITE
+                    : DEEP_PLUM
+            );
 
             FontMetrics fm = g2.getFontMetrics();
 
@@ -1135,28 +2096,69 @@ public class CalendarPanel extends JPanel {
             int x = (width - fm.stringWidth(text)) / 2;
 
             int y = (height - fm.getHeight()) / 2
-                + fm.getAscent() - 2;
+                + fm.getAscent() - 3;
 
             g2.drawString(text, x, y);
 
-            // TODAY DOT
+            // =================================
+            // TODAY INDICATOR
+            // =================================
 
             if (today) {
 
-                g2.setColor(PURPLE);
+                g2.setColor(
+                    selectedDate ? Color.WHITE : PURPLE
+                );
 
                 g2.fillOval(
                     width / 2 - 3,
-                    height - 17,
+                    height - 18,
                     6, 6
+                );
+            }
+
+            // =================================
+            // NEW: MOOD INDICATOR DOT
+            // =================================
+
+            if (hasMood) {
+
+                g2.setColor(
+                    selectedDate
+                        ? Color.WHITE
+                        : getEmotionDotColor()
+                );
+
+                g2.fillOval(
+                    width / 2 - 2,
+                    height - 10,
+                    5, 5
+                );
+
+                g2.setColor(
+                    new Color(255, 255, 255, 200)
+                );
+
+                g2.setStroke(new BasicStroke(0.8f));
+
+                g2.drawOval(
+                    width / 2 - 2,
+                    height - 10,
+                    5, 5
                 );
             }
 
             g2.dispose();
         }
+
+        private Color getEmotionDotColor() {
+            return moodColor.darker();
+        }
     }
 
-    // MAIN BACKGROUND
+    // =========================================
+    // BACKGROUND
+    // =========================================
 
     @Override
     protected void paintComponent(Graphics g) {
@@ -1170,16 +2172,43 @@ public class CalendarPanel extends JPanel {
             RenderingHints.VALUE_ANTIALIAS_ON
         );
 
+        int width = getWidth();
+        int height = getHeight();
+
         GradientPaint gradient = new GradientPaint(
-            0, 0, BLUSH,
-            getWidth(), getHeight(), LAVENDER
+            0, 0,
+            new Color(255, 239, 237),
+            width, height,
+            new Color(205, 194, 239)
         );
 
         g2.setPaint(gradient);
 
         g2.fillRect(
             0, 0,
-            getWidth(), getHeight()
+            width, height
+        );
+
+        // SOFT PINK AMBIENT LIGHT
+
+        g2.setColor(new Color(255, 255, 255, 30));
+
+        g2.fillOval(
+            -100,
+            -100,
+            350,
+            350
+        );
+
+        // LAVENDER AMBIENT LIGHT
+
+        g2.setColor(new Color(174, 157, 231, 25));
+
+        g2.fillOval(
+            width - 300,
+            height - 300,
+            400,
+            400
         );
 
         g2.dispose();
